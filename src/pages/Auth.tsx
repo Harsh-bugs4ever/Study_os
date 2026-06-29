@@ -532,7 +532,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useApp } from '@/contexts/AppContext';
 import { toast } from 'sonner';
- 
+
 /* ─────────────────────────────────────────────────────────────
    INLINE STYLES  (scoped with gk- prefix — won't collide)
 ───────────────────────────────────────────────────────────── */
@@ -715,11 +715,11 @@ function useParticles(
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const DPR   = Math.min(window.devicePixelRatio || 1, 2);
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
     const COUNT = 900;
     const COLORS = ['#7aad8a', '#8fbf9d', '#c9b99a', '#a89e8e'];
 
-    type P = { bx:number; by:number; x:number; y:number; r:number; alpha:number; ph:[number,number]; sp:[number,number]; col:string };
+    type P = { bx: number; by: number; x: number; y: number; r: number; alpha: number; ph: [number, number]; sp: [number, number]; col: string };
     const particles: P[] = [];
     const mouse = { x: -9999, y: -9999, active: false };
     let W = 0, H = 0;
@@ -727,9 +727,9 @@ function useParticles(
     function build() {
       W = panel!.clientWidth;
       H = panel!.clientHeight;
-      canvas!.width  = W * DPR;
+      canvas!.width = W * DPR;
       canvas!.height = H * DPR;
-      canvas!.style.width  = W + 'px';
+      canvas!.style.width = W + 'px';
       canvas!.style.height = H + 'px';
       ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
       particles.length = 0;
@@ -738,13 +738,13 @@ function useParticles(
         const by = (Math.random() - 0.5) * 2;
         particles.push({
           bx, by,
-          x: (bx+1)/2*W,
-          y: (by+1)/2*H,
-          r: 0.8 + Math.random()*1.8,
-          alpha: 0.15 + Math.random()*0.4,
-          ph: [Math.random()*Math.PI*2, Math.random()*Math.PI*2],
-          sp: [0.12+Math.random()*0.3, 0.12+Math.random()*0.3],
-          col: COLORS[Math.floor(Math.random()*COLORS.length)],
+          x: (bx + 1) / 2 * W,
+          y: (by + 1) / 2 * H,
+          r: 0.8 + Math.random() * 1.8,
+          alpha: 0.15 + Math.random() * 0.4,
+          ph: [Math.random() * Math.PI * 2, Math.random() * Math.PI * 2],
+          sp: [0.12 + Math.random() * 0.3, 0.12 + Math.random() * 0.3],
+          col: COLORS[Math.floor(Math.random() * COLORS.length)],
         });
       }
     }
@@ -755,42 +755,42 @@ function useParticles(
     const REPEL = 120, STR = 90, GLOW_R = 70;
     let t = 0, raf: number;
 
-    function hex2(n: number) { return Math.round(n).toString(16).padStart(2,'0'); }
+    function hex2(n: number) { return Math.round(n).toString(16).padStart(2, '0'); }
 
     function draw() {
       raf = requestAnimationFrame(draw);
       t += 0.016;
       ctx!.clearRect(0, 0, W, H);
       for (const p of particles) {
-        const bx = (p.bx+1)/2*W + Math.sin(t*p.sp[0]+p.ph[0])*6;
-        const by = (p.by+1)/2*H + Math.cos(t*p.sp[1]+p.ph[1])*6;
+        const bx = (p.bx + 1) / 2 * W + Math.sin(t * p.sp[0] + p.ph[0]) * 6;
+        const by = (p.by + 1) / 2 * H + Math.cos(t * p.sp[1] + p.ph[1]) * 6;
         let tx = bx, ty = by, glow = 0;
         if (mouse.active) {
-          const dx = bx-mouse.x, dy = by-mouse.y;
-          const d = Math.sqrt(dx*dx+dy*dy);
-          if (d < REPEL && d > 0.5) { const f=(1-d/REPEL)*(1-d/REPEL)*STR; tx+=(dx/d)*f; ty+=(dy/d)*f; }
-          if (d < GLOW_R) glow = Math.pow(1-d/GLOW_R, 2);
+          const dx = bx - mouse.x, dy = by - mouse.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < REPEL && d > 0.5) { const f = (1 - d / REPEL) * (1 - d / REPEL) * STR; tx += (dx / d) * f; ty += (dy / d) * f; }
+          if (d < GLOW_R) glow = Math.pow(1 - d / GLOW_R, 2);
         }
         const ls = mouse.active ? 0.18 : 0.06;
-        p.x += (tx-p.x)*ls;
-        p.y += (ty-p.y)*ls;
-        const r = p.r*(1+glow*3);
-        const a = Math.min(p.alpha+glow*0.55, 1);
+        p.x += (tx - p.x) * ls;
+        p.y += (ty - p.y) * ls;
+        const r = p.r * (1 + glow * 3);
+        const a = Math.min(p.alpha + glow * 0.55, 1);
         if (glow > 0.05) {
-          const g = ctx!.createRadialGradient(p.x,p.y,0,p.x,p.y,r*5);
-          g.addColorStop(0, p.col+hex2(a*0.55*255));
-          g.addColorStop(1,'transparent');
-          ctx!.beginPath(); ctx!.arc(p.x,p.y,r*5,0,Math.PI*2);
+          const g = ctx!.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 5);
+          g.addColorStop(0, p.col + hex2(a * 0.55 * 255));
+          g.addColorStop(1, 'transparent');
+          ctx!.beginPath(); ctx!.arc(p.x, p.y, r * 5, 0, Math.PI * 2);
           ctx!.fillStyle = g; ctx!.fill();
         }
-        ctx!.beginPath(); ctx!.arc(p.x,p.y,r,0,Math.PI*2);
-        ctx!.fillStyle = p.col+hex2(a*255); ctx!.fill();
+        ctx!.beginPath(); ctx!.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx!.fillStyle = p.col + hex2(a * 255); ctx!.fill();
       }
     }
     draw();
 
-    const onMove = (e: MouseEvent) => { const r=canvas!.getBoundingClientRect(); mouse.x=e.clientX-r.left; mouse.y=e.clientY-r.top; mouse.active=true; };
-    const onLeave = () => { mouse.active=false; };
+    const onMove = (e: MouseEvent) => { const r = canvas!.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; mouse.active = true; };
+    const onLeave = () => { mouse.active = false; };
     panel.addEventListener('mousemove', onMove);
     panel.addEventListener('mouseleave', onLeave);
 
@@ -806,21 +806,21 @@ function useParticles(
 /* ─────────────────────────────────────────────────────────────
    PASSWORD INPUT
 ───────────────────────────────────────────────────────────── */
-function PwInput({ value, onChange, placeholder }: { value:string; onChange:(v:string)=>void; placeholder:string }) {
+function PwInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   const [show, setShow] = useState(false);
   return (
     <div className="gk-field">
-      <input type={show?'text':'password'} value={value} onChange={e=>onChange(e.target.value)}
-        placeholder={placeholder} style={{paddingRight:'2.8rem'}} />
-      <button type="button" className="gk-pw-toggle" onClick={()=>setShow(s=>!s)}>
+      <input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)}
+        placeholder={placeholder} style={{ paddingRight: '2.8rem' }} />
+      <button type="button" className="gk-pw-toggle" onClick={() => setShow(s => !s)}>
         {show ? (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
-            <line x1="1" y1="1" x2="23" y2="23"/>
+            <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+            <line x1="1" y1="1" x2="23" y2="23" />
           </svg>
         ) : (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
           </svg>
         )}
       </button>
@@ -834,11 +834,11 @@ function PwInput({ value, onChange, placeholder }: { value:string; onChange:(v:s
 function GKLogo() {
   return (
     <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-      <path d="M16 3C16 3 7 10 7 18C7 23.52 11.48 28 16 28C20.52 28 25 23.52 25 18C25 10 16 3 16 3Z" fill="none" stroke="#7aad8a" strokeWidth="1.8"/>
-      <path d="M16 8V22" stroke="#7aad8a" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M16 14C18.5 12 21 13 21 15.5C21 18 18.5 18 16 18" stroke="#7aad8a" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M16 16C13.5 14 11 15 11 17C11 19 13.5 19 16 19" stroke="#7aad8a" strokeWidth="1.5" strokeLinecap="round"/>
-      <circle cx="16" cy="8" r="1.5" fill="#7aad8a" opacity="0.8"/>
+      <path d="M16 3C16 3 7 10 7 18C7 23.52 11.48 28 16 28C20.52 28 25 23.52 25 18C25 10 16 3 16 3Z" fill="none" stroke="#7aad8a" strokeWidth="1.8" />
+      <path d="M16 8V22" stroke="#7aad8a" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M16 14C18.5 12 21 13 21 15.5C21 18 18.5 18 16 18" stroke="#7aad8a" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M16 16C13.5 14 11 15 11 17C11 19 13.5 19 16 19" stroke="#7aad8a" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="16" cy="8" r="1.5" fill="#7aad8a" opacity="0.8" />
     </svg>
   );
 }
@@ -847,25 +847,27 @@ function GKLogo() {
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────── */
 const Auth = () => {
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const { setUser } = useApp();
-  const panelRef  = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [isLogin,  setIsLogin]  = useState(true);
+  const [isLogin, setIsLogin] = useState(true);
   const [animated, setAnimated] = useState(false);
-  const [name,     setName]     = useState('');
-  const [email,    setEmail]    = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [oLoad,    setOLoad]    = useState<null|'google'|'github'>(null);
-  const [err,      setErr]      = useState('');
-  const [ok,       setOk]       = useState('');
+  const [loading, setLoading] = useState(false);
+  const [oLoad, setOLoad] = useState<null | 'google' | 'github'>(null);
+  const [err, setErr] = useState('');
+  const [ok, setOk] = useState('');
 
   useParticles(panelRef, canvasRef);
 
   useEffect(() => { const f = requestAnimationFrame(() => setAnimated(true)); return () => cancelAnimationFrame(f); }, []);
   useEffect(() => { setErr(''); setOk(''); }, [isLogin]);
+
+
 
   // redirect if already logged in
   useEffect(() => {
@@ -884,12 +886,12 @@ const Auth = () => {
       setUser(prev => ({
         ...prev,
         name: p.name || mail.split('@')[0], email: mail,
-        examType: p.exam_type||'', subjects: p.subjects||[],
-        studyTime: p.study_time||'', mood: p.mood||'',
-        xp: p.xp||0, streak: p.streak||0,
-        heroLevel: p.hero_level||1, heroTitle: p.hero_title||'Beginner',
-        burnoutScore: p.burnout_score||0, readinessScore: p.readiness_score||50,
-        onboardingComplete: p.onboarding_complete||false, isLoggedIn: true,
+        examType: p.exam_type || '', subjects: p.subjects || [],
+        studyTime: p.study_time || '', mood: p.mood || '',
+        xp: p.xp || 0, streak: p.streak || 0,
+        heroLevel: p.hero_level || 1, heroTitle: p.hero_title || 'Beginner',
+        burnoutScore: p.burnout_score || 0, readinessScore: p.readiness_score || 50,
+        onboardingComplete: p.onboarding_complete || false, isLoggedIn: true,
       }));
       navigate(p.onboarding_complete ? '/dashboard' : '/onboarding', { replace: true });
     } else {
@@ -935,7 +937,8 @@ const Auth = () => {
   const handleGithub = async () => {
     setErr(''); setOLoad('github');
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github', options: { redirectTo: `${window.location.origin}/auth` },
+      provider: 'github',
+      options: { redirectTo: `${window.location.origin}/auth` },
     });
     setOLoad(null);
     if (error) { setErr(error.message); toast.error(error.message); }
@@ -970,7 +973,7 @@ const Auth = () => {
 
         {/* RIGHT — card */}
         <div className="gk-right">
-          <div className={`gk-card${animated?' gk-anim':''}`}>
+          <div className={`gk-card${animated ? ' gk-anim' : ''}`}>
 
             <div className="gk-brand gk-r">
               <GKLogo />
@@ -982,20 +985,20 @@ const Auth = () => {
 
             <div className="gk-oauth-group gk-r">
               <button className="gk-oauth-btn gk-google" type="button" onClick={handleGoogle} disabled={busy}>
-                {oLoad==='google' ? <><span className="gk-spin"/>Connecting...</> : <>
+                {oLoad === 'google' ? <><span className="gk-spin" />Connecting...</> : <>
                   <svg viewBox="0 0 24 24">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                   </svg>
                   Continue with Google
                 </>}
               </button>
               <button className="gk-oauth-btn gk-github" type="button" onClick={handleGithub} disabled={busy}>
-                {oLoad==='github' ? <><span className="gk-spin" style={{borderTopColor:'#e8e0d4'}}/>Connecting...</> : <>
+                {oLoad === 'github' ? <><span className="gk-spin" style={{ borderTopColor: '#e8e0d4' }} />Connecting...</> : <>
                   <svg viewBox="0 0 24 24" fill="white">
-                    <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+                    <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
                   </svg>
                   Continue with GitHub
                 </>}
@@ -1007,13 +1010,13 @@ const Auth = () => {
             <form onSubmit={handleSubmit} autoComplete="off" noValidate>
               {!isLogin && (
                 <div className="gk-field">
-                  <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="Full Name" />
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Full Name" />
                 </div>
               )}
               <div className="gk-field">
-                <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@university.edu" />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@university.edu" />
               </div>
-              <PwInput value={password} onChange={setPassword} placeholder={isLogin?'Password':'Password (min 6 chars)'} />
+              <PwInput value={password} onChange={setPassword} placeholder={isLogin ? 'Password' : 'Password (min 6 chars)'} />
 
               {isLogin && (
                 <div className="gk-forgot gk-r">
@@ -1022,17 +1025,17 @@ const Auth = () => {
               )}
 
               {err && <div className="gk-err">{err}</div>}
-              {ok  && <div className="gk-ok">{ok}</div>}
+              {ok && <div className="gk-ok">{ok}</div>}
 
               <button type="submit" className="gk-cta gk-r" disabled={busy}>
-                {loading ? <><span className="gk-spin"/>{isLogin?'Signing in…':'Creating account…'}</> : isLogin?'Sign In':'Create Account'}
+                {loading ? <><span className="gk-spin" />{isLogin ? 'Signing in…' : 'Creating account…'}</> : isLogin ? 'Sign In' : 'Create Account'}
               </button>
             </form>
 
             <p className="gk-toggle gk-r">
-              <span>{isLogin?"Don't have an account? ":"Already have an account? "}</span>
-              <a onClick={()=>{setIsLogin(v=>!v);setErr('');setOk('');setName('');setPassword('');}}>
-                {isLogin?'Create one':'Sign in'}
+              <span>{isLogin ? "Don't have an account? " : "Already have an account? "}</span>
+              <a onClick={() => { setIsLogin(v => !v); setErr(''); setOk(''); setName(''); setPassword(''); }}>
+                {isLogin ? 'Create one' : 'Sign in'}
               </a>
             </p>
           </div>
