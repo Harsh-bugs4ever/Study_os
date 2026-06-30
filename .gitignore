@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 .env
+backend/storage/
+backend/.venv/
+__pycache__/
+backend/.cognee_system/
