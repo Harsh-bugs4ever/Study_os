@@ -1,6 +1,6 @@
 from typing import Any
 from ..cognee.client import dataset_for_user
-from ..cognee.search import RetrievalMode, context_text, search_memory
+from ..cognee.search import RetrievalMode, combined_context_text, context_text, search_all_context, search_memory
 
 def infer_mode(message: str, requested: str | None = None) -> RetrievalMode:
     if requested: return RetrievalMode(requested.upper())
@@ -16,3 +16,9 @@ async def retrieve_tutor_context(query: str, user_id=None, requested_mode: str |
     if user_id: datasets.append(dataset_for_user(user_id))
     result = await search_memory(query, mode, datasets=datasets)
     return mode, context_text(result), result
+
+async def retrieve_complete_tutor_context(query: str, user_id=None) -> tuple[str, dict[str, Any]]:
+    datasets = [dataset_for_user(None)]
+    if user_id: datasets.append(dataset_for_user(user_id))
+    results = await search_all_context(query, datasets=datasets)
+    return combined_context_text(results), results

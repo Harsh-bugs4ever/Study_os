@@ -20,7 +20,7 @@ def safe_path(bucket: str, name: str) -> Path:
 async def upload(bucket: str, name: str, request: Request, background: BackgroundTasks, user=Depends(require_user), db: Session = Depends(get_db)):
     content = await request.body()
     path = safe_path(bucket, name); path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(content)
-    doc = KnowledgeDocument(user_id=user.id, storage_key=f"{bucket}/{name}", title=Path(name).name, media_type=request.headers.get("content-type"), size_bytes=len(content), cognee_dataset=dataset_for_user(None))
+    doc = KnowledgeDocument(user_id=user.id, storage_key=f"{bucket}/{name}", title=Path(name).name, media_type=request.headers.get("content-type"), size_bytes=len(content), cognee_dataset=dataset_for_user(user.id))
     db.add(doc); db.commit(); db.refresh(doc)
     background.add_task(ingest_document, doc.id, path)
     return {"Key": f"{bucket}/{name}"}
