@@ -15,6 +15,14 @@ interface Particle {
   r: number; opacity: number; baseX: number; baseY: number; colorIdx: number;
 }
 interface LeaderboardEntry { name: string; xp: number; isCurrentUser: boolean; }
+interface TopicAnalytics { subject: string; topic: string; score: number; attempts: number; trend: string; repeated_mistakes: number; }
+interface StudentAnalytics {
+  weak_topics: TopicAnalytics[];
+  strong_topics: TopicAnalytics[];
+  mastery_scores: TopicAnalytics[];
+  recent_mistakes: Array<{topic:string;question:string;student_answer:string|null;correct_answer:string;timestamp:string}>;
+  recommended_revision_order: Array<TopicAnalytics & {reason:string}>;
+}
 
 const moods = [
   { icon: <Smile size={20} />, label: 'Great', risk: 5 },
@@ -308,6 +316,7 @@ const Dashboard = () => {
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [lbLoading, setLbLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -320,6 +329,16 @@ const Dashboard = () => {
       setLbLoading(false);
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return;
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/api/student/analytics`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (response.ok) setAnalytics(await response.json());
+    }).catch(() => undefined);
   }, []);
 
   const recommendations = useMemo(() => {
@@ -473,6 +492,37 @@ const Dashboard = () => {
                 </p>
               </div>
             </GlassCard>
+          )}
+
+          {analytics && analytics.mastery_scores.length > 0 && (
+            <div>
+              <h3 className="font-display text-lg font-semibold mb-3" style={{ color: 'hsl(var(--text))' }}>Learning Analytics</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <GlassCard delay={0.1}>
+                  <h4 className="font-display text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'hsl(var(--text))' }}><AlertTriangle size={15} style={{color:'hsl(var(--warning))'}}/> Weak Topics</h4>
+                  <div className="space-y-2">{analytics.weak_topics.slice(0,4).map(item=><div key={`${item.subject}-${item.topic}`} className="flex items-center justify-between text-xs"><span className="truncate" style={{color:'hsl(var(--text-secondary))'}}>{item.topic}</span><span className="stat-number" style={{color:'hsl(var(--warning))'}}>{item.score}%</span></div>)}</div>
+                  {analytics.weak_topics.length===0&&<p className="text-xs" style={{color:'hsl(var(--muted))'}}>No weak topics yet.</p>}
+                </GlassCard>
+                <GlassCard delay={0.14}>
+                  <h4 className="font-display text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'hsl(var(--text))' }}><Trophy size={15} style={{color:'hsl(var(--success))'}}/> Strong Topics</h4>
+                  <div className="space-y-2">{analytics.strong_topics.slice(0,4).map(item=><div key={`${item.subject}-${item.topic}`} className="flex items-center justify-between text-xs"><span className="truncate" style={{color:'hsl(var(--text-secondary))'}}>{item.topic}</span><span className="stat-number" style={{color:'hsl(var(--success))'}}>{item.score}%</span></div>)}</div>
+                  {analytics.strong_topics.length===0&&<p className="text-xs" style={{color:'hsl(var(--muted))'}}>Keep practicing—strong topics will appear here.</p>}
+                </GlassCard>
+                <GlassCard delay={0.18}>
+                  <h4 className="font-display text-sm font-semibold mb-3" style={{ color: 'hsl(var(--text))' }}>Mastery Progress</h4>
+                  <div className="space-y-3">{analytics.mastery_scores.slice(0,5).map(item=><div key={`${item.subject}-${item.topic}`}><div className="flex justify-between text-[11px] mb-1"><span className="truncate" style={{color:'hsl(var(--text-secondary))'}}>{item.topic}</span><span className="stat-number" style={{color:'hsl(var(--accent))'}}>{item.score}%</span></div><div className="h-1.5 rounded-full overflow-hidden" style={{background:'hsl(var(--surface2))'}}><motion.div initial={{width:0}} animate={{width:`${item.score}%`}} transition={{duration:.8}} className="h-full rounded-full" style={{background:'hsl(var(--accent))'}}/></div></div>)}</div>
+                </GlassCard>
+                <GlassCard delay={0.22}>
+                  <h4 className="font-display text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'hsl(var(--text))' }}><Brain size={15} style={{color:'hsl(var(--danger))'}}/> Recent Mistakes</h4>
+                  <div className="space-y-3">{analytics.recent_mistakes.slice(0,3).map((item,index)=><div key={`${item.timestamp}-${index}`}><p className="text-[10px] font-medium" style={{color:'hsl(var(--warning))'}}>{item.topic}</p><p className="text-xs line-clamp-2" style={{color:'hsl(var(--text-secondary))'}}>{item.question}</p></div>)}</div>
+                  {analytics.recent_mistakes.length===0&&<p className="text-xs" style={{color:'hsl(var(--muted))'}}>No recent mistakes.</p>}
+                </GlassCard>
+                <GlassCard delay={0.26} className="sm:col-span-2">
+                  <h4 className="font-display text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'hsl(var(--text))' }}><Lightbulb size={15} style={{color:'hsl(var(--accent))'}}/> Recommended Revision</h4>
+                  <div className="flex flex-wrap gap-2">{analytics.recommended_revision_order.slice(0,5).map((item,index)=><button key={`${item.subject}-${item.topic}`} onClick={()=>navigate('/revision',{state:{subject:item.subject,subtopic:item.topic}})} className="text-xs px-3 py-2 rounded-xl flex items-center gap-2 transition-transform hover:scale-[1.02]" style={{background:'hsl(var(--accent-soft))',color:'hsl(var(--text-secondary))'}}><span className="stat-number" style={{color:'hsl(var(--accent))'}}>{index+1}</span>{item.topic}<ArrowRight size={12}/></button>)}</div>
+                </GlassCard>
+              </div>
+            </div>
           )}
 
           {/* Recommendation Feed */}
