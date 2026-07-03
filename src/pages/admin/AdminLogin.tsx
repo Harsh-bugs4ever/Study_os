@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Shield, Lock, Mail } from 'lucide-react';
-import gurukulLogo from '@/assets/gurukul-logo.png';
+import gurukulLogo from '@/assets/logo.png';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');

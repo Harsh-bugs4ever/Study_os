@@ -3,7 +3,7 @@ import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { LayoutDashboard, Upload, FolderOpen, BookOpen, LogOut, Shield, Loader2, BarChart3, FileText, Video, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
-import gurukulLogo from '@/assets/gurukul-logo.png';
+import gurukulLogo from '@/assets/logo.png';
 
 const sidebarItems = [
   { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },

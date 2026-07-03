@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import SaathiChatFAB from '@/components/SaathiChatFAB';
 import { useApp } from '@/contexts/AppContext';
-import gurukulLogo from '@/assets/gurukul-logo.png';
+import gurukulLogo from '@/assets/logo.png';
 
 /* ── StudyOS design tokens (mirrored from index.css) ── */
 const T = {

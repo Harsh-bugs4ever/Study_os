@@ -6,7 +6,7 @@ import {
   Target, Brain, Users, ArrowRight, Sparkles, BookOpen,
   MessageSquare, Layers, HelpCircle, CheckCircle, RefreshCw, BarChart2
 } from 'lucide-react';
-import gurukulLogo from '@/assets/gurukul-logo.png';
+import gurukulLogo from '@/assets/logo.png';
 
 /* ─── Design Tokens (StudyOS Light-First System) ─── */
 const T = {
