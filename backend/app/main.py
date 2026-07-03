@@ -14,5 +14,5 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow
 app.include_router(auth_router); app.include_router(rest_router); app.include_router(storage_router); app.include_router(functions_router)
 app.include_router(memory_router)
 
-@app.get("/health")
+@app.get("/")
 def health(): return {"status": "ok"}

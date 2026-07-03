@@ -1,1 +1,10 @@
-project_id = "hfeslvaqsgweekdmexjt"
+project_id = "dsyuxqvbrhynxkrqfqmw"
+
+[functions.generate-learning]
+verify_jwt = false
+
+[functions.saathi-chat]
+verify_jwt = false
+
+[functions.github-auth]
+verify_jwt = false

@@ -1,0 +1,4 @@
+[pyrefly]
+# Point pyrefly at the backend virtual environment so it can resolve
+# installed packages (fastapi, httpx, pydantic-settings, cognee, etc.)
+python-interpreter = ".venv/Scripts/python.exe"

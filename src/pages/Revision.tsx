@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { supabase } from '@/integrations/supabase/client';
+import { callBackend } from '@/lib/backend';
 import { BookOpen, Sparkles, ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AnimatedBook } from '@/components/revision/AnimatedBook';
@@ -403,10 +403,7 @@ const Revision = () => {
     if (!aiSubject.trim() || !aiTopic.trim()) { toast.error('Enter subject and topic'); return; }
     setAiGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-learning', {
-        body: { subject: aiSubject, subtopic: aiTopic, mode: 'flashcards', numQuestions: aiCount },
-      });
-      if (error) throw error;
+      const data = await callBackend('generate-learning', { subject: aiSubject, subtopic: aiTopic, mode: 'flashcards', numQuestions: aiCount });
       const result = data?.result;
       if (Array.isArray(result) && result.length > 0) {
         const cards: Flashcard[] = result.map((item: any, i: number) => ({

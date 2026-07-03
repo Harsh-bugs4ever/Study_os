@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, Send, Loader2 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import ReactMarkdown from 'react-markdown';
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/saathi-chat`;
+const CHAT_URL = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}/functions/v1/saathi-chat`;
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -46,10 +46,7 @@ const SaathiChatFAB = () => {
 
     const resp = await fetch(CHAT_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: allMessages, context }),
     });
 
@@ -137,19 +134,16 @@ const SaathiChatFAB = () => {
 
   return (
     <>
-      <AnimatePresence>
-        {!open && (
-          <motion.button ref={btnRef} initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
-            onClick={() => setOpen(true)}
-            className="fixed bottom-24 lg:bottom-8 right-6 w-14 h-14 rounded-full flex items-center justify-center text-2xl font-display z-50"
-            style={{ background: 'linear-gradient(135deg, hsl(176 78% 24%), hsl(130 45% 42%))', color: 'white', boxShadow: 'var(--shadow-lg)' }}>
-            स
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {!open && (
+        <motion.button ref={btnRef} initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          onClick={() => setOpen(true)}
+          className="fixed bottom-24 lg:bottom-8 right-6 w-14 h-14 rounded-full flex items-center justify-center text-2xl font-display z-50"
+          style={{ background: 'linear-gradient(135deg, hsl(176 78% 24%), hsl(130 45% 42%))', color: 'white', boxShadow: 'var(--shadow-lg)' }}>
+          स
+        </motion.button>
+      )}
 
-      <AnimatePresence>
-        {open && (
+      {open && (
           <motion.div initial={{ opacity: 0, y: 100, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 100, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="fixed bottom-24 lg:bottom-6 right-4 lg:right-6 w-[calc(100%-2rem)] max-w-[400px] rounded-2xl border border-border overflow-hidden z-50 flex flex-col"
@@ -215,8 +209,7 @@ const SaathiChatFAB = () => {
               </button>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
+      )}
     </>
   );
 };
