@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import TABLE_MODELS, JournalEntry, Material, Profile, UserRole
 from .security import optional_user
+from repositories import TableRepository
 
 router = APIRouter(prefix="/rest/v1", tags=["Supabase-compatible REST"])
 
@@ -56,12 +57,13 @@ def filtered(stmt, model, request: Request, user):
 async def table_api(table: str, request: Request, response: Response, db: Session = Depends(get_db), prefer: str = Header(""), authorization: str | None = Header(None)):
     model = TABLE_MODELS.get(table)
     if not model: raise HTTPException(404, {"code": "PGRST205", "message": f"Could not find table '{table}'"})
+    repo = TableRepository(db)
     user = optional_user(authorization); body = await request.json() if request.method in {"POST", "PATCH"} else None
     authorize(table, request.method, user, body)
     fields = request.query_params.get("select", "*")
     wants_object = "application/vnd.pgrst.object+json" in request.headers.get("accept", "")
     if request.method in {"GET", "HEAD"}:
-        stmt = filtered(select(model), model, request, user); rows = db.scalars(stmt).all()
+        stmt = filtered(select(model), model, request, user); rows = repo.all(stmt)
         if "count=exact" in prefer: response.headers["Content-Range"] = f"0-{max(0,len(rows)-1)}/{len(rows)}"
         if request.method == "HEAD": return None
         if wants_object:
@@ -75,18 +77,18 @@ async def table_api(table: str, request: Request, response: Response, db: Sessio
             if table == "materials" and values.get("type") not in {"pdf", "video", "pyq"}: raise HTTPException(400, {"code": "P0001", "message": "Invalid material type"})
             if "resolution=merge-duplicates" in prefer:
                 stmt = pg_insert(model).values(**values).on_conflict_do_update(index_elements=[request.headers.get("on-conflict", "id")], set_=values).returning(model)
-                created.append(db.scalars(stmt).one())
+                created.append(repo.one(stmt))
             else:
-                obj = model(**values); db.add(obj); db.flush(); created.append(obj)
-        db.commit()
+                created.append(repo.add(model(**values)))
+        repo.commit()
         if "return=representation" not in prefer: return None
         result = [serialize(x, fields) for x in created]
         return result[0] if wants_object and len(result) == 1 else result
-    targets = db.scalars(filtered(select(model), model, request, user)).all()
+    targets = repo.all(filtered(select(model), model, request, user))
     if table == "journal_entries" and any(x.user_id != user.id for x in targets): raise HTTPException(403, {"code": "42501", "message": "permission denied"})
     if request.method == "PATCH":
         for obj in targets:
             for k, v in body.items(): setattr(obj, k, v)
     else:
-        for obj in targets: db.delete(obj)
-    db.commit(); return [serialize(x, fields) for x in targets] if "return=representation" in prefer else None
+        for obj in targets: repo.delete(obj)
+    repo.commit(); return [serialize(x, fields) for x in targets] if "return=representation" in prefer else None

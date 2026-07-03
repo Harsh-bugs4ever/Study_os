@@ -1,15 +1,11 @@
 import json
 from datetime import datetime, timezone
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import select
 from sqlalchemy.orm import Session
-from ..models import QuizAttempt, StudentMemory
+from repositories import MemoryRepository
 from .client import cognee_module, dataset_for_user, write_lock
 
 async def remember_student_fact(db: Session, user_id, kind: str, key: str, value: dict) -> None:
-    stmt = insert(StudentMemory).values(user_id=user_id, kind=kind, memory_key=key, value=value)
-    stmt = stmt.on_conflict_do_update(index_elements=["user_id", "kind", "memory_key"], set_={"value": value, "updated_at": datetime.now(timezone.utc)})
-    db.execute(stmt); db.commit()
+    MemoryRepository(db).upsert(user_id, kind, key, value)
     cognee = cognee_module()
     if cognee:
         text = f"Student memory. Type: {kind}. Key: {key}. Value: {json.dumps(value, default=str)}"
@@ -18,14 +14,20 @@ async def remember_student_fact(db: Session, user_id, kind: str, key: str, value
             await cognee.cognify(datasets=[dataset_for_user(user_id)], incremental_loading=True)
 
 async def remember_quiz_attempt(db: Session, user_id, subject: str, topic: str, correct: int, total: int, details: dict) -> None:
-    db.add(QuizAttempt(user_id=user_id, subject=subject, topic=topic, correct=correct, total=total, details=details))
-    db.commit()
+    repository = MemoryRepository(db)
+    repository.add_quiz_attempt(user_id, subject, topic, correct, total, details)
     memory_key = f"{subject}:{topic}"
-    previous = db.scalar(select(StudentMemory).where(
-        StudentMemory.user_id == user_id,
-        StudentMemory.kind == "mastery",
-        StudentMemory.memory_key == memory_key,
-    ))
+    recorded_at = datetime.now(timezone.utc).isoformat()
+    await remember_student_fact(db, user_id, "quiz_attempt", f"{memory_key}:{recorded_at}", {
+        "subject": subject,
+        "topic": topic,
+        "correct": correct,
+        "total": total,
+        "score": round(correct / total, 4),
+        "timestamp": recorded_at,
+        "questions": details.get("questions", []),
+    })
+    previous = repository.get(user_id, "mastery", memory_key)
     attempt_score = correct / total
     previous_value = previous.value if previous else {}
     previous_score = float(previous_value.get("score", attempt_score))
