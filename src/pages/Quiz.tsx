@@ -855,6 +855,8 @@ const Quiz = () => {
   const [bossLoading, setBossLoading] = useState(false);
   const qStart = useRef(Date.now());
   const times = useRef<number[]>([]);
+  const answerHistory = useRef<Array<{question:string;student_answer:string|null;correct_answer:string;is_correct:boolean;timestamp:string}>>([]);
+  const analyticsSubmitted = useRef(false);
 
   const getQuickPicks = () => {
     const map: Record<string,string[]> = {
@@ -921,6 +923,7 @@ const Quiz = () => {
     if(times.current.length>3&&rt/avg>2.2) setBrainFog(true);
     setSelected(i); setAnswered(true);
     const ok=i===q.correct;
+    answerHistory.current.push({question:q.question,student_answer:q.options[i]??null,correct_answer:q.options[q.correct]??'',is_correct:ok,timestamp:new Date().toISOString()});
     if(ok){const xp=q.difficulty==='hard'?30:q.difficulty==='medium'?20:10;setSessionXP(p=>p+xp);setTotalCorrect(p=>p+1);setCorrectStreak(p=>p+1);setWrongStreak(0);setUser(p=>({...p,xp:p.xp+xp}));}
     else{setCorrectStreak(0);setWrongStreak(p=>p+1);if(q.concept&&!weakConcepts.includes(q.concept))setWeakConcepts(p=>[...p,q.concept]);}
   };
@@ -952,8 +955,18 @@ const Quiz = () => {
     else if(!bossDefeated){setShowBoss(false);setBossQuestions([]);toast('Boss survived! Keep going!');}
   };
 
-  const handleStuck=()=>{setStuckCount(p=>p+1);setAnswered(true);setSelected(-1);if(q.concept&&!weakConcepts.includes(q.concept))setWeakConcepts(p=>[...p,q.concept]);setEncouragement(`${Math.floor(Math.random()*40)+10} students also got stuck. You're not alone.`);setTimeout(()=>setEncouragement(null),4000);};
+  const handleStuck=()=>{answerHistory.current.push({question:q.question,student_answer:null,correct_answer:q.options[q.correct]??'',is_correct:false,timestamp:new Date().toISOString()});setStuckCount(p=>p+1);setAnswered(true);setSelected(-1);if(q.concept&&!weakConcepts.includes(q.concept))setWeakConcepts(p=>[...p,q.concept]);setEncouragement(`${Math.floor(Math.random()*40)+10} students also got stuck. You're not alone.`);setTimeout(()=>setEncouragement(null),4000);};
   const nextQuestion=()=>{if(currentQ<questions.length-1){setCurrentQ(p=>p+1);setSelected(null);setAnswered(false);setShowHint(false);qStart.current=Date.now();}else setQuizDone(true);};
+
+  useEffect(()=>{
+    if(!quizDone||analyticsSubmitted.current||questions.length===0)return;
+    analyticsSubmitted.current=true;
+    void supabase.auth.getSession().then(async({data:{session}})=>{
+      if(!session)return;
+      const response=await fetch(`${import.meta.env.VITE_SUPABASE_URL}/memory/quiz`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`},body:JSON.stringify({subject,topic:subtopic,correct:totalCorrect,total:questions.length,details:{questions:answerHistory.current,weakConcepts}})});
+      if(!response.ok) analyticsSubmitted.current=false;
+    }).catch(()=>{analyticsSubmitted.current=false;});
+  },[quizDone,questions.length,subject,subtopic,totalCorrect,weakConcepts]);
   const startBreak=()=>{setBreakTimer(30);setBreakActive(true);};
   const dismissFog=(a:string)=>{setBrainFog(false);setWrongStreak(0);if(a==='game')navigate('/games');if(a==='easier'){setDifficulty('easy');setEncouragement('Switched to easier questions.');setTimeout(()=>setEncouragement(null),3000);}if(a==='breathe')startBreak();};
 
@@ -1156,7 +1169,7 @@ const Quiz = () => {
               </div>}
               <div style={{display:'flex',gap:10,justifyContent:'center'}}>
                 <motion.button whileHover={{scale:1.03}} onClick={()=>navigate('/revision')} style={{padding:'11px 22px',borderRadius:13,background:'linear-gradient(135deg,rgba(45,175,150,0.9),rgba(70,115,215,0.9))',border:'1px solid rgba(100,220,190,0.28)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Plus Jakarta Sans,sans-serif'}}>Create flashcards →</motion.button>
-                <motion.button whileHover={{scale:1.03}} onClick={()=>{setQuizStarted(false);setQuizDone(false);setCurrentQ(0);setSessionXP(0);setTotalCorrect(0);setCorrectStreak(0);setWrongStreak(0);setStuckCount(0);setQuestions([]);setWeakConcepts([]);}} style={{padding:'11px 22px',borderRadius:13,...GL,color:'rgba(190,230,225,0.65)',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Plus Jakarta Sans,sans-serif'}}>New quiz</motion.button>
+                <motion.button whileHover={{scale:1.03}} onClick={()=>{setQuizStarted(false);setQuizDone(false);setCurrentQ(0);setSessionXP(0);setTotalCorrect(0);setCorrectStreak(0);setWrongStreak(0);setStuckCount(0);setQuestions([]);setWeakConcepts([]);answerHistory.current=[];analyticsSubmitted.current=false;}} style={{padding:'11px 22px',borderRadius:13,...GL,color:'rgba(190,230,225,0.65)',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Plus Jakarta Sans,sans-serif'}}>New quiz</motion.button>
               </div>
             </TiltCard>
           </motion.div>

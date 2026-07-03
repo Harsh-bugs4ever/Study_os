@@ -7,12 +7,14 @@ from .functions import router as functions_router
 from .rest import router as rest_router
 from .storage import router as storage_router
 from .memory_routes import router as memory_router
+from .analytics_routes import router as analytics_router
 
 app = FastAPI(title="StudyOS API", version="1.0.0")
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, https_only=False, same_site="lax")
 app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"], expose_headers=["Content-Range"])
 app.include_router(auth_router); app.include_router(rest_router); app.include_router(storage_router); app.include_router(functions_router)
 app.include_router(memory_router)
+app.include_router(analytics_router)
 
 @app.get("/")
 def health(): return {"status": "ok"}
