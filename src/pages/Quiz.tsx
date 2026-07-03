@@ -632,7 +632,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { supabase } from '@/integrations/supabase/client';
+import { callBackend } from '@/lib/backend';
 import { Zap, HelpCircle, Loader2, Sparkles, AlertCircle, Wind, Shield, Swords, Trophy, Flame, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -879,8 +879,7 @@ const Quiz = () => {
     if (!subject.trim()||!subtopic.trim()) { toast.error('Please enter subject and topic'); return; }
     setLoading(true);
     try {
-      const {data,error}=await supabase.functions.invoke('generate-learning',{body:{subject,subtopic,mode:'quiz',numQuestions}});
-      if (error) throw error;
+      const data=await callBackend('generate-learning',{subject,subtopic,mode:'quiz',numQuestions});
       const r=data?.result;
       if (Array.isArray(r)&&r.length>0) { setQuestions(r.slice(0,numQuestions)); setQuizStarted(true); qStart.current=Date.now(); }
       else toast.error('Could not generate quiz. Try again.');
@@ -937,8 +936,7 @@ const Quiz = () => {
       {question:`How would you explain ${subtopic} to a 5-year-old?`,options:['Using analogies','With formulas','Through experiments','Simple analogies and examples'],correct:3,explanation:'Simple analogies make complex concepts accessible.'},
     ];
     try {
-      const{data,error}=await supabase.functions.invoke('generate-learning',{body:{subject,subtopic,mode:'boss-battle'}});
-      if(error) throw error;
+      const data=await callBackend('generate-learning',{subject,subtopic,mode:'boss-battle'});
       const r=data?.result;
       setBossQuestions(Array.isArray(r)&&r.length>0?r.slice(0,3):fb);
     } catch { setBossQuestions(fb); }

@@ -491,7 +491,7 @@ import {
   AlertTriangle, Target, PenLine, MessageCircle, Mic,
   ClipboardCheck, Brain, ChevronRight
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { callBackend } from '@/lib/backend';
 import { useApp } from '@/contexts/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -1034,7 +1034,7 @@ const Learn = () => {
   };
 
   const fetchWithTimeout=async(body:any,rid:number):Promise<any>=>{
-    const inv=supabase.functions.invoke('generate-learning',{body}).then(({data,error})=>{ if(error)throw new Error(error.message); return data; });
+    const inv=callBackend('generate-learning',body);
     const to=new Promise((_,rej)=>setTimeout(()=>rej(new Error('REQUEST_TIMEOUT')),TIMEOUT_MS));
     const result=await Promise.race([inv,to]);
     if(rid!==reqIdRef.current) throw new Error('STALE_REQUEST');

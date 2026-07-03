@@ -16,5 +16,5 @@ app.include_router(auth_router); app.include_router(rest_router); app.include_ro
 app.include_router(memory_router)
 app.include_router(analytics_router)
 
-@app.get("/health")
+@app.get("/")
 def health(): return {"status": "ok"}

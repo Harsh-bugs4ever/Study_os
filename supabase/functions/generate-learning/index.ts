@@ -2,8 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Max-Age": "86400",
 };
 
 function extractJsonFromResponse(response: string): unknown {
@@ -32,8 +34,82 @@ function extractJsonFromResponse(response: string): unknown {
   }
 }
 
+async function generateWithGemini(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = Deno.env.get("GOOGLE_AI_API_KEY") || Deno.env.get("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("GOOGLE_AI_API_KEY is not configured");
+
+  const model = Deno.env.get("GOOGLE_AI_MODEL") || "gemini-2.5-flash";
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          maxOutputTokens: 8192,
+          responseMimeType: "application/json",
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("RATE_LIMITED");
+    const text = await response.text();
+    console.error("Gemini API error:", response.status, text.substring(0, 1000));
+    throw new Error("AI_SERVICE_ERROR");
+  }
+
+  const data = await response.json();
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  const content = parts.map((part: { text?: string }) => part.text ?? "").join("");
+
+  if (!content.trim()) {
+    console.error("Gemini returned no text:", JSON.stringify(data).substring(0, 1000));
+    throw new Error("AI_EMPTY_RESPONSE");
+  }
+
+  return content;
+}
+
+async function generateWithLovable(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 8192,
+    }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("RATE_LIMITED");
+    if (response.status === 402) throw new Error("AI_CREDITS_EXHAUSTED");
+    const text = await response.text();
+    console.error("Lovable AI gateway error:", response.status, text.substring(0, 1000));
+    throw new Error("AI_SERVICE_ERROR");
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || "";
+  if (!content.trim()) throw new Error("AI_EMPTY_RESPONSE");
+  return content;
+}
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
   try {
     const { subject, subtopic, mode, numQuestions, studentExplanation } = await req.json();
@@ -44,9 +120,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     let systemPrompt = "";
     let userPrompt = "";
@@ -117,56 +190,47 @@ Evaluate how well they understand this concept.`;
 Return ONLY valid JSON array of 5-7 concept names (strings) that form the learning path for this topic, ordered from foundational to advanced.`;
 
       userPrompt = `Generate concept map for: ${subject} - ${subtopic}`;
+    } else {
+      return new Response(JSON.stringify({ error: `Unsupported mode: ${mode}` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        generationConfig: {
-          maxOutputTokens: 8192,
-        },
-      }),
-    });
+    try {
+      const content = Deno.env.get("GOOGLE_AI_API_KEY") || Deno.env.get("GEMINI_API_KEY")
+        ? await generateWithGemini(systemPrompt, userPrompt)
+        : await generateWithLovable(systemPrompt, userPrompt);
 
-    if (!response.ok) {
-      if (response.status === 429) {
+      try {
+        const parsed = extractJsonFromResponse(content);
+        return new Response(JSON.stringify({ result: parsed }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch {
+        console.error("Failed to parse AI response:", content.substring(0, 500));
+        return new Response(JSON.stringify({ result: content, raw: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI_SERVICE_ERROR";
+      if (message === "RATE_LIMITED") {
         return new Response(JSON.stringify({ error: "Rate limited. Please try again in a moment." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
+      if (message === "AI_CREDITS_EXHAUSTED") {
         return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
+
+      const missingKey = message.includes("API_KEY") || message.includes("LOVABLE_API_KEY");
+      return new Response(JSON.stringify({
+        error: missingKey ? message : "AI service error. Please try again shortly.",
+      }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-
-    try {
-      const parsed = extractJsonFromResponse(content);
-      return new Response(JSON.stringify({ result: parsed }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } catch {
-      console.error("Failed to parse AI response:", content.substring(0, 500));
-      return new Response(JSON.stringify({ result: content, raw: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
   } catch (e) {
