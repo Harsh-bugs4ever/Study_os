@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..security import require_user
+from ..security import optional_user, require_user
 from .hackathon_showcase import (
     ai_mentor,
     demo_metrics,
@@ -35,7 +35,9 @@ class RevisionBody(BaseModel):
 
 
 @router.get("/mentor")
-async def mentor(user=Depends(require_user), db: Session = Depends(get_db)):
+async def mentor(user=Depends(optional_user), db: Session = Depends(get_db)):
+    if not user:
+        return {}
     return await ai_mentor(db, user.id)
 
 

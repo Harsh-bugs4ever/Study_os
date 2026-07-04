@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .cognee.explainability import explainable_chat
 from .cognee.memory_dashboard import memory_dashboard, memory_history, pin_memory, search_memories, soft_delete_memory
 from .database import get_db
-from .security import require_user
+from .security import optional_user, require_user
 from services.groq_service import GroqServiceError
 
 router = APIRouter(prefix="/api", tags=["Explainable AI and memory"])
@@ -59,5 +59,7 @@ def memory_pin(body: PinBody, user=Depends(require_user), db: Session = Depends(
 
 
 @router.get("/memory/history")
-def history(user=Depends(require_user), db: Session = Depends(get_db)):
+def history(user=Depends(optional_user), db: Session = Depends(get_db)):
+    if not user:
+        return {"replay": []}
     return memory_history(db, user.id)

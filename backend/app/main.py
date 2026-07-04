@@ -13,6 +13,7 @@ from .explainability_routes import router as explainability_router
 from .adaptive_routes import router as adaptive_router
 from .cognee.hackathon_routes import router as hackathon_router
 from .cognee.hackathon_memory_routes import router as memory_tag_router
+from .email_routes import router as email_router
 
 app = FastAPI(title="StudyOS API", version="1.0.0")
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, https_only=False, same_site="lax")
@@ -25,6 +26,7 @@ app.include_router(explainability_router)
 app.include_router(adaptive_router)
 app.include_router(hackathon_router)
 app.include_router(memory_tag_router)
+app.include_router(email_router)
 
 @app.get("/")
 def health(): return {"status": "ok"}

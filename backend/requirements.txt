@@ -10,3 +10,4 @@ httpx==0.28.1
 Authlib==1.6.0
 itsdangerous==2.2.0
 cognee[postgres-binary,docs]==1.2.2
+resend>=2.0.0
