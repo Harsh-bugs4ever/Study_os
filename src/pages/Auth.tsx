@@ -874,24 +874,39 @@ const Auth = () => {
     let alive = true;
 
     const handleSession = async (session: any) => {
-      if (!session || !alive) return;
-      const { data: p } = await supabase.from('profiles').select('onboarding_complete').eq('id', session.user.id).maybeSingle();
-      if (alive) navigate(p?.onboarding_complete ? '/dashboard' : '/onboarding', { replace: true });
+      console.log('[Auth] handleSession called with session:', session ? 'Session Exists' : 'No Session');
+      if (!session || !alive) {
+        console.log('[Auth] No session or component unmounted. Aborting handleSession.');
+        return;
+      }
+      console.log('[Auth] Fetching profile for user ID:', session.user.id);
+      const { data: p, error } = await supabase.from('profiles').select('onboarding_complete').eq('id', session.user.id).maybeSingle();
+      console.log('[Auth] Profile fetch result:', p, 'Error:', error);
+      if (alive) {
+        const targetPath = p?.onboarding_complete ? '/dashboard' : '/onboarding';
+        console.log('[Auth] Navigating to:', targetPath);
+        navigate(targetPath, { replace: true });
+      }
     };
 
     // Check initial session
-    void supabase.auth.getSession().then(({ data: { session } }) => {
+    console.log('[Auth] Fetching initial session via getSession()');
+    void supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('[Auth] getSession() completed. Session exists:', !!session, 'Error:', error);
       handleSession(session);
     });
 
     // Listen for auth state changes (critical for OAuth redirects)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    console.log('[Auth] Setting up onAuthStateChange listener');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[Auth] onAuthStateChange event fired! Event:', event, 'Session exists:', !!session);
       if (session) {
         handleSession(session);
       }
     });
 
     return () => { 
+      console.log('[Auth] Component unmounting, cleaning up auth listeners.');
       alive = false;
       subscription.unsubscribe();
     };
@@ -943,20 +958,24 @@ const Auth = () => {
   };
 
   const handleGoogle = async () => {
+    console.log('[Auth] Initiating Google OAuth...');
     setErr(''); setOLoad('google');
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google', options: { redirectTo: `${window.location.origin}/auth` },
     });
+    console.log('[Auth] Google OAuth response:', data, 'Error:', error);
     setOLoad(null);
     if (error) { setErr(error.message); toast.error(error.message); }
   };
 
   const handleGithub = async () => {
+    console.log('[Auth] Initiating GitHub OAuth...');
     setErr(''); setOLoad('github');
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: { redirectTo: `${window.location.origin}/auth` },
     });
+    console.log('[Auth] GitHub OAuth response:', data, 'Error:', error);
     setOLoad(null);
     if (error) { setErr(error.message); toast.error(error.message); }
   };
