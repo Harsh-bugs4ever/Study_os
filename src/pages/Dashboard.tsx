@@ -23,6 +23,22 @@ interface StudentAnalytics {
   recent_mistakes: Array<{topic:string;question:string;student_answer:string|null;correct_answer:string;timestamp:string}>;
   recommended_revision_order: Array<TopicAnalytics & {reason:string}>;
 }
+interface AIReplay {
+  improvement: number | null;
+  improved_topic: string | null;
+  completed_quizzes: number;
+  latest_document: { title?: string } | null;
+  weak_topic: string | null;
+  recommendation: string;
+}
+interface CogneeMentor {
+  todays_focus: string;
+  weakest_topic: string;
+  most_improved_topic: { topic: string; delta: number } | null;
+  suggested_revision: { title: string; reason: string; action: string } | null;
+  suggested_quiz: { topic: string; difficulty: string };
+  suggested_document: { title: string } | null;
+}
 
 const moods = [
   { icon: <Smile size={20} />, label: 'Great', risk: 5 },
@@ -317,6 +333,8 @@ const Dashboard = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [lbLoading, setLbLoading] = useState(true);
   const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
+  const [aiReplay, setAiReplay] = useState<AIReplay | null>(null);
+  const [cogneeMentor, setCogneeMentor] = useState<CogneeMentor | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -338,6 +356,28 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (response.ok) setAnalytics(await response.json());
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return;
+      const baseUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${baseUrl}/api/memory/history`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (response.ok) setAiReplay((await response.json()).replay);
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return;
+      const baseUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${baseUrl}/api/cognee/mentor`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (response.ok) setCogneeMentor(await response.json());
     }).catch(() => undefined);
   }, []);
 
@@ -426,6 +466,59 @@ const Dashboard = () => {
                   <p className="text-xs" style={{ color: 'hsl(var(--muted))' }}>No pressure, no timers. Saathi thinks you need a gentler day.</p>
                 </div>
                 <button onClick={() => setRecoveryMode(false)} className="text-xs font-medium px-3 py-1 rounded-lg border border-border" style={{ color: 'hsl(var(--text-secondary))' }}>Exit mode</button>
+              </div>
+            </GlassCard>
+          )}
+
+          {aiReplay && (
+            <GlassCard delay={0.03}>
+              <div className="flex items-start gap-4">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(var(--accent-soft))', color: 'hsl(var(--accent))' }}>
+                  <Brain size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm mb-1" style={{ color: 'hsl(var(--muted))' }}>Welcome back {user.name || 'Student'}.</p>
+                  <h3 className="font-display text-lg font-semibold mb-3" style={{ color: 'hsl(var(--text))' }}>Since your last session</h3>
+                  <div className="grid sm:grid-cols-2 gap-2 mb-3">
+                    {aiReplay.improvement !== null && aiReplay.improved_topic && (
+                      <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}>✓ You improved {aiReplay.improved_topic} by {Math.abs(aiReplay.improvement)}%</p>
+                    )}
+                    <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}>✓ You completed {aiReplay.completed_quizzes} quizzes</p>
+                    {aiReplay.latest_document?.title && <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}>✓ You uploaded {aiReplay.latest_document.title}</p>}
+                    {aiReplay.weak_topic && <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}>✓ You still struggle with {aiReplay.weak_topic}</p>}
+                  </div>
+                  <div className="p-3 rounded-xl" style={{ background: 'hsl(var(--accent-soft))' }}>
+                    <p className="text-xs font-semibold mb-1" style={{ color: 'hsl(var(--accent))' }}>Today's recommendation</p>
+                    <p className="text-sm font-display italic" style={{ color: 'hsl(var(--text))' }}>{aiReplay.recommendation}</p>
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          )}
+
+          {cogneeMentor && (
+            <GlassCard delay={0.04}>
+              <div className="flex items-start gap-4">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(var(--accent-soft))', color: 'hsl(var(--accent))' }}>
+                  <Lightbulb size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display text-lg font-semibold mb-3" style={{ color: 'hsl(var(--text))' }}>AI Mentor</h3>
+                  <div className="grid sm:grid-cols-2 gap-2 mb-3">
+                    <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}><strong>Today's Focus:</strong> {cogneeMentor.todays_focus}</p>
+                    <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}><strong>Weakest Topic:</strong> {cogneeMentor.weakest_topic}</p>
+                    <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}><strong>Most Improved:</strong> {cogneeMentor.most_improved_topic ? `${cogneeMentor.most_improved_topic.topic} +${cogneeMentor.most_improved_topic.delta}%` : 'Not enough attempts yet'}</p>
+                    <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}><strong>Suggested Document:</strong> {cogneeMentor.suggested_document?.title || 'Upload a PDF to activate this'}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => navigate('/revision', { state: { subtopic: cogneeMentor.suggested_revision?.title || cogneeMentor.todays_focus } })} className="text-xs px-3 py-2 rounded-xl flex items-center gap-2" style={{ background: 'hsl(var(--accent-soft))', color: 'hsl(var(--text-secondary))' }}>
+                      Suggested Revision <ArrowRight size={12} />
+                    </button>
+                    <button onClick={() => navigate('/quiz', { state: { subtopic: cogneeMentor.suggested_quiz.topic } })} className="text-xs px-3 py-2 rounded-xl flex items-center gap-2" style={{ background: 'hsl(var(--accent-soft))', color: 'hsl(var(--text-secondary))' }}>
+                      Suggested Quiz <ArrowRight size={12} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </GlassCard>
           )}

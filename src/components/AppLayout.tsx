@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   Home, BookOpen, Target, Brain, Gamepad2, Users, User,
   ArrowLeft, Layers, Library, ChevronLeft, ChevronRight,
-  Flame, Zap, Bell
+  Flame, Network, Archive, Zap
 } from 'lucide-react';
 import SaathiChatFAB from '@/components/SaathiChatFAB';
 import { useApp } from '@/contexts/AppContext';
@@ -29,6 +29,9 @@ const navItems = [
   { path: '/quiz',           icon: Target,    label: 'Quiz'     },
   { path: '/revision',       icon: Layers,    label: 'Revise'   },
   { path: '/knowledge-vault',icon: Library,   label: 'Vault'    },
+  { path: '/concept-graph',  icon: Network,   label: 'Graph'    },
+  { path: '/memory',         icon: Archive,   label: 'Memory'   },
+  { path: '/cognee-demo',    icon: Zap,       label: 'Cognee'   },
   { path: '/mental-health',  icon: Brain,     label: 'Wellness' },
   { path: '/games',          icon: Gamepad2,  label: 'Games'    },
   { path: '/social',         icon: Users,     label: 'Social'   },

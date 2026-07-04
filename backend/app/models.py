@@ -145,6 +145,8 @@ class StudentMemory(Base):
     kind: Mapped[str] = mapped_column(String(32), index=True)
     memory_key: Mapped[str] = mapped_column(Text)
     value: Mapped[dict] = mapped_column(JSON)
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
@@ -159,6 +161,41 @@ class QuizAttempt(Base):
     total: Mapped[int] = mapped_column(Integer)
     details: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ConceptNode(Base):
+    __tablename__ = "concept_nodes"
+    __table_args__ = (UniqueConstraint("user_id", "slug"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(Text)
+    slug: Mapped[str] = mapped_column(Text, index=True)
+    difficulty: Mapped[str] = mapped_column(String(24), default="intermediate")
+    mastery: Mapped[int] = mapped_column(Integer, default=0)
+    documents: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    memories: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    quiz_history: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    chat_history: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    study_recommendations: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    weaknesses: Mapped[list[str]] = mapped_column(JSON, default=list)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class ConceptEdge(Base):
+    __tablename__ = "concept_edges"
+    __table_args__ = (UniqueConstraint("user_id", "source_id", "target_id", "relationship"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("concept_nodes.id", ondelete="CASCADE"), index=True)
+    target_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("concept_nodes.id", ondelete="CASCADE"), index=True)
+    relationship: Mapped[str] = mapped_column(String(40), default="related")
+    strength: Mapped[int] = mapped_column(Integer, default=50)
+    evidence: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
 
 TABLE_MODELS = {m.__tablename__: m for m in (Profile, Stream, Subject, Topic, SubTopic, Material, JournalEntry, UserRole)}
