@@ -4,6 +4,7 @@ from uuid import UUID
 from ..database import SessionLocal
 from ..models import KnowledgeDocument
 from .client import cognee_module, write_lock
+from .graph_builder import ConceptGraphBuilder
 from .memory import remember_student_fact
 from .search import RetrievalMode, context_text, search_memory
 
@@ -38,6 +39,11 @@ async def ingest_document(document_id: UUID, path: Path) -> None:
         if user_id and concepts:
             with SessionLocal() as db:
                 await remember_student_fact(db, user_id, "document_concepts", str(document_id), {"title": title, "concepts": concepts})
+        if user_id:
+            with SessionLocal() as db:
+                doc = db.get(KnowledgeDocument, document_id)
+                if doc:
+                    await ConceptGraphBuilder(db, user_id).ingest_document(doc, concepts)
         with SessionLocal() as db:
             doc = db.get(KnowledgeDocument, document_id)
             doc.ingestion_status = "ready"; doc.ingestion_error = None
