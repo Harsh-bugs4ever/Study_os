@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     groq_api_url: str = "https://api.groq.com/openai/v1"
     groq_model: str = "llama-3.3-70b-versatile"
+    supabase_jwt_secret: str | None = None  # Supabase Dashboard → Project Settings → API → JWT Secret
+    resend_api_key: str | None = None        # Resend Dashboard → API Keys
+    email_from: str = "StudyOS <noreply@studyos.app>"  # Verified sender in Resend
     google_client_id: str | None = None
     google_client_secret: str | None = None
     github_client_id: str | None = None

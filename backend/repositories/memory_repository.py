@@ -10,11 +10,16 @@ class MemoryRepository:
 
     def upsert(self, user_id, kind: str, key: str, value: dict) -> None:
         statement = insert(StudentMemory).values(user_id=user_id, kind=kind, memory_key=key, value=value)
-        statement = statement.on_conflict_do_update(index_elements=["user_id", "kind", "memory_key"], set_={"value": value, "updated_at": datetime.now(timezone.utc)})
+        statement = statement.on_conflict_do_update(
+            index_elements=["user_id", "kind", "memory_key"],
+            set_={"value": value, "deleted_at": None, "updated_at": datetime.now(timezone.utc)},
+        )
         self.db.execute(statement); self.db.commit()
 
-    def add_quiz_attempt(self, user_id, subject: str, topic: str, correct: int, total: int, details: dict) -> None:
-        self.db.add(QuizAttempt(user_id=user_id, subject=subject, topic=topic, correct=correct, total=total, details=details)); self.db.commit()
+    def add_quiz_attempt(self, user_id, subject: str, topic: str, correct: int, total: int, details: dict) -> QuizAttempt:
+        attempt = QuizAttempt(user_id=user_id, subject=subject, topic=topic, correct=correct, total=total, details=details)
+        self.db.add(attempt); self.db.commit(); self.db.refresh(attempt)
+        return attempt
 
     def get(self, user_id, kind: str, key: str):
         return self.db.scalar(select(StudentMemory).where(StudentMemory.user_id == user_id, StudentMemory.kind == kind, StudentMemory.memory_key == key))

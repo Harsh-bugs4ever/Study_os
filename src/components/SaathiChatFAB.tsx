@@ -1,13 +1,26 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Send, Loader2 } from 'lucide-react';
+import { X, Send, Loader2, Info, BookOpen, Network, Brain, FileText, Target } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import ReactMarkdown from 'react-markdown';
+import { supabase } from '@/integrations/supabase/client';
 
-const CHAT_URL = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}/functions/v1/saathi-chat`;
+const CHAT_URL = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}/api/chat`;
 
 type Msg = { role: 'user' | 'assistant'; content: string };
+type Explain = {
+  sources?: Record<string, Array<{ text?: string; type?: string }>>;
+  graph_nodes?: Array<{ name: string; mastery?: number; difficulty?: string }>;
+  memories?: Array<{ kind: string; key: string; value?: Record<string, unknown> }>;
+  related_documents?: Array<{ title?: string; storage_key?: string }>;
+  related_topics?: string[];
+  reasoning?: string[];
+  previous_conversations?: Array<Record<string, unknown>>;
+  quiz_history?: Array<{ topic?: string; score?: number }>;
+  weak_topics?: Array<Record<string, unknown>>;
+  study_planner_context?: Array<Record<string, unknown>>;
+};
 
 const quickChips = [
   'Explain this topic',
@@ -25,6 +38,8 @@ const SaathiChatFAB = () => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [explainByIndex, setExplainByIndex] = useState<Record<number, Explain>>({});
+  const [activeExplain, setActiveExplain] = useState<Explain | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +47,7 @@ const SaathiChatFAB = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const streamChat = async (allMessages: Msg[]) => {
+  const explainableChat = async (allMessages: Msg[]) => {
     const context = {
       currentSubject: user.subjects?.[0] || '',
       currentTopic: '',
@@ -43,54 +58,26 @@ const SaathiChatFAB = () => {
       recoveryMode,
       subjects: user.subjects,
     };
+    const { data: { session } } = await supabase.auth.getSession();
 
     const resp = await fetch(CHAT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
       body: JSON.stringify({ messages: allMessages, context }),
     });
 
-    if (!resp.ok || !resp.body) throw new Error('Failed to start stream');
-
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let textBuffer = '';
-    let assistantSoFar = '';
-    let streamDone = false;
-
-    while (!streamDone) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      textBuffer += decoder.decode(value, { stream: true });
-
-      let newlineIndex: number;
-      while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-        let line = textBuffer.slice(0, newlineIndex);
-        textBuffer = textBuffer.slice(newlineIndex + 1);
-        if (line.endsWith('\r')) line = line.slice(0, -1);
-        if (line.startsWith(':') || line.trim() === '') continue;
-        if (!line.startsWith('data: ')) continue;
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === '[DONE]') { streamDone = true; break; }
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-          if (content) {
-            assistantSoFar += content;
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              if (last?.role === 'assistant' && prev.length > 1) {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-              }
-              return [...prev, { role: 'assistant', content: assistantSoFar }];
-            });
-          }
-        } catch {
-          textBuffer = line + '\n' + textBuffer;
-          break;
-        }
-      }
-    }
+    if (!resp.ok) throw new Error('Failed to get response');
+    const payload = await resp.json();
+    setMessages(prev => {
+      const next = [...prev, { role: 'assistant' as const, content: payload.answer || '' }];
+      const index = next.length - 1;
+      setExplainByIndex(old => ({ ...old, [index]: payload }));
+      setActiveExplain(payload);
+      return next;
+    });
   };
 
   const handleSend = async (text?: string) => {
@@ -103,7 +90,7 @@ const SaathiChatFAB = () => {
     setIsLoading(true);
 
     try {
-      await streamChat(newMessages.filter(m => m.role === 'user' || m.role === 'assistant'));
+      await explainableChat(newMessages.filter(m => m.role === 'user' || m.role === 'assistant'));
     } catch (e) {
       console.error(e);
       setMessages(prev => [...prev, { role: 'assistant', content: "I'm having trouble connecting right now. Please try again in a moment. 🌿" }]);
@@ -173,6 +160,11 @@ const SaathiChatFAB = () => {
                     {m.role === 'assistant' ? (
                       <div className="prose prose-sm max-w-none" style={{ color: 'hsl(var(--text))' }}>
                         <ReactMarkdown>{m.content}</ReactMarkdown>
+                        {explainByIndex[i] && (
+                          <button onClick={() => setActiveExplain(explainByIndex[i])} className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold" style={{ color: 'hsl(var(--accent))' }}>
+                            <Info size={11} /> Why this answer?
+                          </button>
+                        )}
                       </div>
                     ) : m.content}
                   </div>
@@ -187,6 +179,26 @@ const SaathiChatFAB = () => {
               )}
               <div ref={messagesEndRef} />
             </div>
+
+            {activeExplain && (
+              <div className="absolute top-0 right-0 h-full w-[82%] max-w-[330px] border-l border-border overflow-y-auto p-4"
+                style={{ background: 'hsl(var(--surface))', boxShadow: 'var(--shadow-lg)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-display font-semibold text-sm flex items-center gap-2" style={{ color: 'hsl(var(--text))' }}><Info size={15} /> Explainability</h3>
+                  <button onClick={() => setActiveExplain(null)} style={{ color: 'hsl(var(--muted))' }}><X size={16} /></button>
+                </div>
+                <ExplainBlock icon={<Brain size={13} />} title="Why Generated" items={(activeExplain.reasoning || []).map(String)} />
+                <ExplainBlock icon={<BookOpen size={13} />} title="Retrieved Summaries" items={(activeExplain.sources?.summaries || []).map(x => x.text || '')} />
+                <ExplainBlock icon={<FileText size={13} />} title="Retrieved Chunks" items={(activeExplain.sources?.chunks || []).map(x => x.text || '')} />
+                <ExplainBlock icon={<Network size={13} />} title="Knowledge Graph Nodes" items={(activeExplain.graph_nodes || []).map(x => `${x.name} · ${x.mastery ?? 0}%`)} />
+                <ExplainBlock icon={<Brain size={13} />} title="Retrieved Memories" items={(activeExplain.memories || []).map(x => `${x.kind}: ${x.key}`)} />
+                <ExplainBlock icon={<FileText size={13} />} title="Retrieved Documents" items={(activeExplain.related_documents || []).map(x => x.title || x.storage_key || '')} />
+                <ExplainBlock icon={<Target size={13} />} title="Quiz History Used" items={(activeExplain.quiz_history || []).map(x => `${x.topic || 'Quiz'} · ${x.score ?? 0}%`)} />
+                <ExplainBlock icon={<Target size={13} />} title="Weak Topics Used" items={(activeExplain.weak_topics || []).map(x => String((x.value as any)?.topic || x.key || 'Weak topic'))} />
+                <ExplainBlock icon={<BookOpen size={13} />} title="Study Planner Context" items={(activeExplain.study_planner_context || []).map(x => String((x.value as any)?.next_action || x.key || 'Planner memory'))} />
+                <ExplainBlock icon={<MessageIcon />} title="Previous Conversations" items={(activeExplain.previous_conversations || []).map(x => String((x.value as any)?.excerpt || x.key || 'Conversation'))} />
+              </div>
+            )}
 
             <div className="px-3 pb-2 flex flex-wrap gap-1.5">
               {quickChips.map(chip => (
@@ -213,5 +225,22 @@ const SaathiChatFAB = () => {
     </>
   );
 };
+
+const MessageIcon = () => <span style={{ display: 'inline-flex' }}><Info size={13} /></span>;
+
+const ExplainBlock = ({ icon, title, items }: { icon: React.ReactNode; title: string; items: string[] }) => (
+  <section className="mb-4">
+    <h4 className="text-[11px] font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'hsl(var(--text))' }}>{icon}{title}</h4>
+    {items.filter(Boolean).length ? (
+      <div className="space-y-1.5">
+        {items.filter(Boolean).slice(0, 5).map((item, index) => (
+          <p key={index} className="text-[11px] leading-snug rounded-lg p-2" style={{ background: 'hsl(var(--surface2))', color: 'hsl(var(--text-secondary))' }}>{item.slice(0, 260)}</p>
+        ))}
+      </div>
+    ) : (
+      <p className="text-[11px]" style={{ color: 'hsl(var(--muted))' }}>No evidence used.</p>
+    )}
+  </section>
+);
 
 export default SaathiChatFAB;
