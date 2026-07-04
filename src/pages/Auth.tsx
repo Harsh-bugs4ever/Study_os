@@ -869,15 +869,32 @@ const Auth = () => {
 
 
 
-  // redirect if already logged in
+  // redirect if already logged in or when auth state changes (e.g. after OAuth redirect)
   useEffect(() => {
     let alive = true;
-    void supabase.auth.getSession().then(async ({ data: { session } }) => {
+
+    const handleSession = async (session: any) => {
       if (!session || !alive) return;
       const { data: p } = await supabase.from('profiles').select('onboarding_complete').eq('id', session.user.id).maybeSingle();
       if (alive) navigate(p?.onboarding_complete ? '/dashboard' : '/onboarding', { replace: true });
+    };
+
+    // Check initial session
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSession(session);
     });
-    return () => { alive = false; };
+
+    // Listen for auth state changes (critical for OAuth redirects)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        handleSession(session);
+      }
+    });
+
+    return () => { 
+      alive = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const loadProfile = useCallback(async (uid: string, mail: string) => {
