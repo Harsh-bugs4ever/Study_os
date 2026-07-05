@@ -75,7 +75,6 @@ const SaathiChatFAB = () => {
       const next = [...prev, { role: 'assistant' as const, content: payload.answer || '' }];
       const index = next.length - 1;
       setExplainByIndex(old => ({ ...old, [index]: payload }));
-      setActiveExplain(payload);
       return next;
     });
   };

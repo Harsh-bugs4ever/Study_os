@@ -1,6 +1,6 @@
 # StudyOS Cognee Hackathon Architecture
 
-StudyOS uses Cognee as the memory and knowledge layer behind tutoring, retrieval, analytics, graphing, and revision.
+StudyOS uses **Cognee Cloud** as the memory and knowledge layer behind tutoring, retrieval, analytics, graphing, and revision. All graph, vector, and relational memory is fully managed — no local databases required.
 
 ## Core Flow
 
