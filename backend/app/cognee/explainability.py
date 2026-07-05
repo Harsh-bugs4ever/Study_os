@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 from sqlalchemy import select
@@ -126,5 +127,9 @@ async def explainable_chat(db: Session, user_id, messages: list[dict], context: 
 
     payload = await adaptive_tutor_answer(db, user_id, messages, context)
     if user_id:
-        await remember_conversation(user_id, [*messages, {"role": "assistant", "content": payload["answer"][-8000:]}])
+        # Fire-and-forget: don't make the caller wait for Cognee's
+        # add+cognify+improve pipeline before receiving the answer.
+        asyncio.create_task(
+            remember_conversation(user_id, [*messages, {"role": "assistant", "content": payload["answer"][-8000:]}])
+        )
     return payload

@@ -1,4 +1,4 @@
-import json, re
+import asyncio, json, re
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from .cognee.memory import remember_conversation
@@ -55,8 +55,12 @@ async def saathi_chat(request: Request, authorization: str | None = Header(None)
     latest_question = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
     memory_query = " ".join(x for x in (context.get("currentSubject", ""), context.get("currentTopic", ""), latest_question) if x)
     try:
-        memory_context, _ = await retrieve_complete_tutor_context(memory_query, user_obj.id if user_obj else None)
+        memory_context, _ = await asyncio.wait_for(
+            retrieve_complete_tutor_context(memory_query, user_obj.id if user_obj else None),
+            timeout=4.0,
+        )
     except Exception:
+        # Cognee Cloud recall() was too slow or failed -- don't block the chat on it.
         memory_context = ""
     system = f"""You are Saathi, a warm, supportive study companion for Indian students.
 CRITICAL INSTRUCTION: Provide VERY CONCISE and COMPACT answers. Get straight to the point without unnecessary fluff.
@@ -78,5 +82,12 @@ If recovery mode is active, suggest lighter activities. Recovery mode: {context.
             yield b"data: [DONE]\n\n"
         finally:
             if user_obj and messages:
-                await remember_conversation(user_obj.id, [*messages, {"role": "assistant", "content": "".join(response_parts)[-8000:]}])
+                # Fire-and-forget: don't make the client wait for Cognee's
+                # add+cognify+improve pipeline before the stream can close.
+                asyncio.create_task(
+                    remember_conversation(
+                        user_obj.id,
+                        [*messages, {"role": "assistant", "content": "".join(response_parts)[-8000:]}],
+                    )
+                )
     return StreamingResponse(relay(), media_type="text/event-stream")

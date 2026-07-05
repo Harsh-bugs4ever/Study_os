@@ -2,8 +2,7 @@ from enum import Enum
 import asyncio
 from typing import Any
 from .client import get_client, dataset_for_user
-
-
+from cognee import SearchType
 class RetrievalMode(str, Enum):
     CHUNKS = "CHUNKS"
     SUMMARIES = "SUMMARIES"
@@ -16,7 +15,8 @@ async def search_memory(query: str, mode: RetrievalMode, datasets: list[str] | N
     if client is None:
         return []
     
-    kwargs: dict[str, Any] = {"query_type": mode.value, "top_k": top_k}
+    cognee_mode = getattr(SearchType, mode.value)
+    kwargs: dict[str, Any] = {"query_type": cognee_mode, "top_k": top_k}
     if datasets:
         kwargs["datasets"] = datasets
     if mode is RetrievalMode.INSIGHTS:

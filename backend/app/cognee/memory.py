@@ -13,7 +13,10 @@ async def remember_student_fact(db: Session, user_id, kind: str, key: str, value
     if client:
         text = f"Student memory. Type: {kind}. Key: {key}. Value: {json.dumps(value, default=str)}"
         async with write_lock():
-            await client.remember(text, dataset_name=dataset_for_user(user_id))
+            try:
+                await client.remember(text, dataset_name=dataset_for_user(user_id), run_in_background=True)
+            except Exception as e:
+                print(f"Cognee error in remember_student_fact: {repr(e)}")
     memory = repository.get(user_id, kind, key)
     if memory and kind in {"document_concepts", "weak_topic", "learning_path", "mastery", "study_completion"}:
         await ConceptGraphBuilder(db, user_id).ingest_memory_fact(memory)
@@ -75,8 +78,16 @@ async def remember_conversation(user_id, messages: list[dict]) -> None:
     if not user_id or not messages: return
     transcript = "Conversation:\n" + "\n".join(f"{m.get('role','unknown')}: {m.get('content','')}" for m in messages[-12:])
     if client:
+        dataset_name = dataset_for_user(user_id)
+        print("Cognee client:", client)
+        print("Dataset name:", dataset_name)
         async with write_lock():
-            await client.remember(transcript, dataset_name=dataset_for_user(user_id))
+            print("Sending to Cognee...")
+            try:
+                await client.remember(transcript, dataset_name=dataset_name, run_in_background=True)
+                print("Successfully stored in Cognee")
+            except Exception as e:
+                print("Cognee error:", repr(e))
     from ..database import SessionLocal
     with SessionLocal() as db:
         digest = hashlib.sha1(transcript.encode("utf-8")).hexdigest()[:16]
