@@ -26,7 +26,7 @@ import httpx
 import jwt  # PyJWT -- already in requirements
 
 # ── Config ────────────────────────────────────────────────────────────────────
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://study-os-j8xk.onrender.com"
 JWT_SECRET = "change-me"          # matches backend/.env JWT_SECRET default
 JWT_ALGORITHM = "HS256"
 
