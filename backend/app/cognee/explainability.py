@@ -125,5 +125,6 @@ async def explainable_chat(db: Session, user_id, messages: list[dict], context: 
     from .adaptive_engine import adaptive_tutor_answer
 
     payload = await adaptive_tutor_answer(db, user_id, messages, context)
-    await remember_conversation(user_id, [*messages, {"role": "assistant", "content": payload["answer"][-8000:]}])
+    if user_id:
+        await remember_conversation(user_id, [*messages, {"role": "assistant", "content": payload["answer"][-8000:]}])
     return payload

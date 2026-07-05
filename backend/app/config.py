@@ -22,23 +22,13 @@ class Settings(BaseSettings):
     github_client_id: str | None = None
     github_client_secret: str | None = None
     session_secret: str = "change-me-too"
+
+    # ── Cognee Cloud ─────────────────────────────────────────────────────────
     cognee_enabled: bool = True
     cognee_dataset_prefix: str = "studyos"
-    db_provider: str = "postgres"
-    db_name: str = "cognee"
-    db_host: str = "127.0.0.1"
-    db_port: int = 5432
-    db_username: str = "studyos"
-    db_password: str = "studyos"
-    vector_db_provider: str = "pgvector"
-    vector_dataset_database_handler: str = "pgvector"
-    vector_db_name: str = "cognee"
-    vector_db_url: str = "127.0.0.1"
-    vector_db_port: int = 5432
-    vector_db_username: str = "studyos"
-    vector_db_password: str = "studyos"
-    graph_database_provider: str = "kuzu"
-    system_root_directory: str = "./.cognee_system"
+    cognee_api_key: str | None = None       # Cognee Cloud API key
+    cognee_service_url: str | None = None   # Tenant URL e.g. https://<tenant>.aws.cognee.ai
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[1] / ".env",
         env_file_encoding="utf-8",

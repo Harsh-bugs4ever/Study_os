@@ -9,30 +9,31 @@ Cognee is the **persistent memory layer** of StudyOS. It sits between the raw Po
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                     Frontend (React)                         │
-└───────────────────────┬──────────────────────────────────────┘
+└───────────────────────┤─────────────────────────────────────┘
                         │  REST / SSE
-┌───────────────────────▼──────────────────────────────────────┐
+┌───────────────────────▼─────────────────────────────────────┐
 │                  FastAPI Backend                              │
 │                                                              │
-│  ┌─────────────────┐   ┌────────────────┐   ┌─────────────┐  │
+│  ┌─────────────────┐   ┌──────────────┐   ┌───────────┐  │
 │  │  /functions/v1  │   │   /memory/*    │   │  /api/*     │  │
 │  │  (AI endpoints) │   │ (Cognee CRUD)  │   │ /cognee/*   │  │
-│  └────────┬────────┘   └───────┬────────┘   └──────┬──────┘  │
+│  └────────┬────────┘   └───────┬───────┘   └──────┬─────┘  │
 │           │                   │                    │         │
-│           │     ┌─────────────▼────────────────────▼─────┐   │
-│           │     │          app/cognee/                   │   │
+│           │     ┌───────────▼───────────────────▼────┐   │
+│           │     │          app/cognee/                   │
 │           │     │  client.py      memory.py    search.py │   │
 │           └────►│  ingest.py      graph.py     builder.py│   │
 │                 │  adaptive.py    quiz.py      recs.py   │   │
 │                 │  analytics.py   explain.py   showcase.py│  │
 │                 └──────────────┬─────────────────────────┘   │
-└────────────────────────────────┼─────────────────────────────┘
+└────────────────────────────────┤──────────────────────────────┘
                                  │
-         ┌───────────────────────▼────────────────────────┐
-         │                  Cognee                         │
-         │  Vector store (pgvector) + Graph (Kuzu) +       │
-         │  Relational meta-DB (PostgreSQL)                │
-         └────────────────────────────────────────────────┘
+         ┌─────────────────────▼───────────────────────┐
+         │              Cognee Cloud                        │
+         │  Knowledge Graph + Vector Search +               │
+         │  Entity Extraction + Memory Enrichment           │
+         │  (fully managed, no local infra required)        │
+         └──────────────────────────────────────────────┘
 ```
 
 ---
@@ -44,8 +45,10 @@ Cognee is the **persistent memory layer** of StudyOS. It sits between the raw Po
 | Symbol | Purpose |
 |---|---|
 | `dataset_for_user(user_id)` | Returns a namespaced dataset string: `studyos_<user_id>` or `studyos_shared` for the global dataset |
-| `cognee_module()` | Lazy-imports `cognee` only when enabled; returns `None` if `COGNEE_ENABLED=false` |
-| `write_lock()` | A single `asyncio.Lock` that serializes all `cognee.add` + `cognee.cognify` calls to avoid concurrent graph corruption |
+| `init_client()` | Called once at FastAPI startup via `lifespan`; connects to Cognee Cloud via `cognee.serve()` |
+| `shutdown_client()` | Called at shutdown; calls `cognee.disconnect()` |
+| `get_client()` | Returns the active Cloud client, or `None` if disabled / not connected |
+| `write_lock()` | A single `asyncio.Lock` that serializes all `client.remember()` calls to avoid concurrent conflicts |
 
 ---
 
@@ -234,7 +237,7 @@ Groq / Gemini generates personalized response
 
 All Cognee settings live in the backend `.env` / `.env.example`.
 
-### Required for Cognee to run
+### Required for Cognee Cloud
 
 ```env
 COGNEE_ENABLED=true
@@ -272,7 +275,7 @@ LLM_MODEL=gemini/gemini-2.5-flash   # or groq/llama-3.3-70b-versatile
 COGNEE_ENABLED=false
 ```
 
-When disabled, all `cognee_module()` calls return `None`, every search returns `[]`, and `remember_*` functions skip the graph write. The LLM endpoints still work — they just receive no memory context.
+When disabled, `get_client()` returns `None`, every search returns `[]`, and `remember_*` functions skip the graph write. The LLM endpoints still work — they just receive no memory context.
 
 ---
 

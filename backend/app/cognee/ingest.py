@@ -3,7 +3,7 @@ from pathlib import Path
 from uuid import UUID
 from ..database import SessionLocal
 from ..models import KnowledgeDocument
-from .client import cognee_module, write_lock
+from .client import get_client, dataset_for_user, write_lock
 from .graph_builder import ConceptGraphBuilder
 from .memory import remember_student_fact
 from .search import RetrievalMode, context_text, search_memory
@@ -11,7 +11,7 @@ from .search import RetrievalMode, context_text, search_memory
 SUPPORTED_SUFFIXES = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt", ".md", ".srt", ".vtt"}
 
 async def ingest_document(document_id: UUID, path: Path) -> None:
-    """Run after the upload transaction: add first, then cognify its dataset."""
+    """Run after the upload transaction: upload the file to Cognee Cloud and cognify."""
     user_id = None
     with SessionLocal() as db:
         doc = db.get(KnowledgeDocument, document_id)
@@ -25,16 +25,22 @@ async def ingest_document(document_id: UUID, path: Path) -> None:
         user_id = doc.user_id
         title = doc.title
     try:
-        cognee = cognee_module()
-        if cognee is None:
+        client = get_client()
+        if client is None:
             with SessionLocal() as db:
                 doc = db.get(KnowledgeDocument, document_id)
                 if doc:
-                    doc.ingestion_status = "skipped"; doc.ingestion_error = "Cognee is disabled"; db.commit()
+                    doc.ingestion_status = "skipped"; doc.ingestion_error = "Cognee Cloud is disabled"; db.commit()
             return
         async with write_lock():
-            await cognee.add(str(path), dataset_name=dataset)
-            await cognee.cognify(datasets=[dataset], incremental_loading=True)
+            # CloudClient requires a file handle to upload a file (not a string path)
+            with path.open("rb") as f:
+                # Need to attach a name attribute so CloudClient sets the filename in form-data
+                setattr(f, "name", path.name)
+                # The V2 `remember` method handles both ingestion (add) and graph building (cognify)
+                await client.remember(f, dataset_name=dataset)
+        
+        # After ingestion is done, wait a bit then extract concepts (needs the graph to be built)
         concepts = await extract_document_concepts(title, dataset)
         if user_id and concepts:
             with SessionLocal() as db:

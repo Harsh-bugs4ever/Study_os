@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -14,8 +15,18 @@ from .adaptive_routes import router as adaptive_router
 from .cognee.hackathon_routes import router as hackathon_router
 from .cognee.hackathon_memory_routes import router as memory_tag_router
 from .email_routes import router as email_router
+from .cognee.client import init_client, shutdown_client
 
-app = FastAPI(title="StudyOS API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Connect to Cognee Cloud on startup; disconnect on shutdown."""
+    await init_client()
+    yield
+    await shutdown_client()
+
+
+app = FastAPI(title="StudyOS API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, https_only=False, same_site="lax")
 app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"], expose_headers=["Content-Range"])
 app.include_router(auth_router); app.include_router(rest_router); app.include_router(storage_router); app.include_router(functions_router)

@@ -8,10 +8,16 @@ from services.groq_service import GroqService
 
 
 async def adaptive_tutor_answer(db: Session, user_id, messages: list[dict], context: dict[str, Any] | None = None) -> dict[str, Any]:
-    profile = await persist_learning_profile(db, user_id)
     latest = next((item.get("content", "") for item in reversed(messages) if item.get("role") == "user"), "")
     query = " ".join(x for x in ((context or {}).get("currentSubject", ""), (context or {}).get("currentTopic", ""), latest) if x)
-    evidence = await explainable_context(db, user_id, query)
+    
+    if user_id:
+        profile = await persist_learning_profile(db, user_id)
+        evidence = await explainable_context(db, user_id, query)
+    else:
+        from .learning_profile import DEFAULT_PROFILE
+        profile = DEFAULT_PROFILE.copy()
+        evidence = {"context": "", "sources": {"chunks": [], "summaries": [], "graph_completion": []}, "graph_nodes": [], "memories": [], "related_documents": [], "related_topics": [], "previous_conversations": [], "quiz_history": [], "weak_topics": [], "study_planner_context": []}
     style = profile.get("learning_style", "balanced")
     difficulty = profile.get("difficulty_preference", "adaptive")
     style_rule = {
@@ -21,6 +27,7 @@ async def adaptive_tutor_answer(db: Session, user_id, messages: list[dict], cont
         "kinesthetic": "Use examples, mini exercises, and practice prompts.",
     }.get(str(style).lower(), "Use a balanced explanation with an example and a short check.")
     system = f"""You are Saathi, an adaptive AI tutor.
+CRITICAL INSTRUCTION: Provide VERY CONCISE and COMPACT answers. Get straight to the point without unnecessary fluff. Keep your response as short as possible while still being helpful. Use bullet points if needed.
 Personalize every answer using the student's Learning Profile, Cognee chunks, summaries, insights, graph completion, weak topics, planner context, previous chats, and quiz history.
 {style_rule}
 If beginner or low confidence, simplify. If advanced or high confidence, use more technical detail.

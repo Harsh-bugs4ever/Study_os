@@ -62,6 +62,7 @@ def access_token(user: User) -> str:
 def _decode_supabase_token(token: str) -> dict | None:
     """Try to decode a Supabase HS256 JWT using the auto-discovered secret."""
     if not _SUPABASE_JWT_SECRET:
+        print("[SECURITY] _decode_supabase_token: _SUPABASE_JWT_SECRET is None")
         return None
     try:
         return jwt.decode(
@@ -69,12 +70,20 @@ def _decode_supabase_token(token: str) -> dict | None:
             audience="authenticated",
             options={"verify_exp": True},
         )
-    except jwt.PyJWTError:
+    except jwt.PyJWTError as e:
+        print(f"[SECURITY] _decode_supabase_token failed: {type(e).__name__} - {str(e)}")
         return None
 
 
 def decode_token(value: str) -> dict:
     """Decode a JWT issued by either this backend or Supabase."""
+    
+    try:
+        header = jwt.get_unverified_header(value)
+        print(f"[SECURITY] Token header: {header}")
+    except Exception as e:
+        print(f"[SECURITY] Could not read token header: {e}")
+
     # 1. Try local secret first (fast path for locally-issued tokens)
     try:
         return jwt.decode(
@@ -89,6 +98,7 @@ def decode_token(value: str) -> dict:
     if payload:
         return payload
 
+    print(f"[SECURITY] decode_token completely failed for token starting with {value[:10]}...")
     raise HTTPException(401, {"message": "Invalid JWT", "code": "bad_jwt"})
 
 

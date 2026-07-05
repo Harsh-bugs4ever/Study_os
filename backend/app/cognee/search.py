@@ -1,7 +1,8 @@
 from enum import Enum
 import asyncio
 from typing import Any
-from .client import cognee_module
+from .client import get_client, dataset_for_user
+
 
 class RetrievalMode(str, Enum):
     CHUNKS = "CHUNKS"
@@ -9,22 +10,23 @@ class RetrievalMode(str, Enum):
     INSIGHTS = "INSIGHTS"
     GRAPH_COMPLETION = "GRAPH_COMPLETION"
 
+
 async def search_memory(query: str, mode: RetrievalMode, datasets: list[str] | None = None, top_k: int = 8) -> Any:
-    cognee = cognee_module()
-    if cognee is None: return []
-    from cognee import SearchType
-    if mode is RetrievalMode.CHUNKS:
-        search_type = SearchType.CHUNKS
-    elif mode is RetrievalMode.SUMMARIES:
-        search_type = SearchType.SUMMARIES
-    else:
-        # INSIGHTS is an application-level mode: Cognee's Python API exposes
-        # graph insights through GRAPH_COMPLETION, not an INSIGHTS enum.
-        search_type = SearchType.GRAPH_COMPLETION
-    kwargs = {"query_type": search_type, "top_k": top_k}
-    if datasets: kwargs["datasets"] = datasets
-    if mode is RetrievalMode.INSIGHTS: kwargs["verbose"] = True
-    return await cognee.search(query, **kwargs)
+    client = get_client()
+    if client is None:
+        return []
+    
+    kwargs: dict[str, Any] = {"query_type": mode.value, "top_k": top_k}
+    if datasets:
+        kwargs["datasets"] = datasets
+    if mode is RetrievalMode.INSIGHTS:
+        kwargs["verbose"] = True
+    try:
+        return await client.recall(query, **kwargs)
+    except Exception as exc:
+        print(f"[Cognee] recall() failed: {exc}")
+        return []
+
 
 async def search_all_context(query: str, datasets: list[str] | None = None, top_k: int = 6) -> dict[str, Any]:
     """Retrieve every Cognee context type needed before calling the tutor LLM."""
@@ -38,12 +40,22 @@ async def search_all_context(query: str, datasets: list[str] | None = None, top_
         for mode, result in zip(modes, results)
     }
 
+
 def context_text(result: Any) -> str:
-    if not result: return ""
-    if isinstance(result, str): return result
+    """Flatten Cognee search results into a single string."""
+    if not result:
+        return ""
+    if isinstance(result, str):
+        return result
     if isinstance(result, dict):
         return str(result.get("context_result") or result.get("text_result") or result.get("text") or result)
-    return "\n\n".join(context_text(item) for item in result)
+    # Handle objects with a .text attribute (e.g. Cloud result objects)
+    if hasattr(result, "text") and result.text:
+        return str(result.text)
+    if isinstance(result, (list, tuple)):
+        return "\n\n".join(context_text(item) for item in result)
+    return str(result)
+
 
 def combined_context_text(results: dict[str, Any]) -> str:
     sections = []

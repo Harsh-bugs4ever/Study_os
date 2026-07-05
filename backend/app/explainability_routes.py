@@ -31,9 +31,10 @@ class PinBody(MemoryIdBody):
 
 
 @router.post("/chat")
-async def chat(body: ChatBody, user=Depends(require_user), db: Session = Depends(get_db)):
+async def chat(body: ChatBody, user=Depends(optional_user), db: Session = Depends(get_db)):
     try:
-        return await explainable_chat(db, user.id, body.messages, body.context)
+        user_id = user.id if user else None
+        return await explainable_chat(db, user_id, body.messages, body.context)
     except GroqServiceError as exc:
         raise HTTPException(exc.status_code, str(exc)) from exc
 

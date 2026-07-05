@@ -3,18 +3,17 @@ import hashlib
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from repositories import MemoryRepository
-from .client import cognee_module, dataset_for_user, write_lock
+from .client import get_client, dataset_for_user, write_lock
 from .graph_builder import ConceptGraphBuilder
 
 async def remember_student_fact(db: Session, user_id, kind: str, key: str, value: dict) -> None:
     repository = MemoryRepository(db)
     repository.upsert(user_id, kind, key, value)
-    cognee = cognee_module()
-    if cognee:
+    client = get_client()
+    if client:
         text = f"Student memory. Type: {kind}. Key: {key}. Value: {json.dumps(value, default=str)}"
         async with write_lock():
-            await cognee.add(text, dataset_name=dataset_for_user(user_id))
-            await cognee.cognify(datasets=[dataset_for_user(user_id)], incremental_loading=True)
+            await client.remember(text, dataset_name=dataset_for_user(user_id))
     memory = repository.get(user_id, kind, key)
     if memory and kind in {"document_concepts", "weak_topic", "learning_path", "mastery", "study_completion"}:
         await ConceptGraphBuilder(db, user_id).ingest_memory_fact(memory)
@@ -69,17 +68,15 @@ async def remember_quiz_attempt(db: Session, user_id, subject: str, topic: str, 
     })
     await ConceptGraphBuilder(db, user_id).ingest_quiz_attempt(attempt)
     from .recommendation_engine import update_after_quiz
-
     await update_after_quiz(db, user_id)
 
 async def remember_conversation(user_id, messages: list[dict]) -> None:
-    cognee = cognee_module()
+    client = get_client()
     if not user_id or not messages: return
     transcript = "Conversation:\n" + "\n".join(f"{m.get('role','unknown')}: {m.get('content','')}" for m in messages[-12:])
-    if cognee:
+    if client:
         async with write_lock():
-            await cognee.add(transcript, dataset_name=dataset_for_user(user_id))
-            await cognee.cognify(datasets=[dataset_for_user(user_id)], incremental_loading=True)
+            await client.remember(transcript, dataset_name=dataset_for_user(user_id))
     from ..database import SessionLocal
     with SessionLocal() as db:
         digest = hashlib.sha1(transcript.encode("utf-8")).hexdigest()[:16]

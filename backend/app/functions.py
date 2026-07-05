@@ -59,8 +59,9 @@ async def saathi_chat(request: Request, authorization: str | None = Header(None)
     except Exception:
         memory_context = ""
     system = f"""You are Saathi, a warm, supportive study companion for Indian students.
+CRITICAL INSTRUCTION: Provide VERY CONCISE and COMPACT answers. Get straight to the point without unnecessary fluff.
 Detect whether the student needs study help, emotional support, or planning help. Be conversational and specific.
-Use no more than 4-5 short lines. Never dismiss distress. Current subject: {context.get('currentSubject','')}; current topic: {context.get('currentTopic','')}; mood: {context.get('mood','')}; readiness: {context.get('readiness','')}.
+Use no more than 2-3 short sentences. Never dismiss distress. Current subject: {context.get('currentSubject','')}; current topic: {context.get('currentTopic','')}; mood: {context.get('mood','')}; readiness: {context.get('readiness','')}.
 If recovery mode is active, suggest lighter activities. Recovery mode: {context.get('recoveryMode', False)}."""
     if memory_context:
         system += f"\n\nBefore answering, use this Cognee memory context when relevant:\n{memory_context[:12000]}"
